@@ -1,62 +1,233 @@
-﻿using ArcGIS.Core.CIM;
-using ArcGIS.Core.Data;
-using ArcGIS.Core.Geometry;
-using ArcGIS.Desktop.Catalog;
-using ArcGIS.Desktop.Core;
-using ArcGIS.Desktop.Editing;
-using ArcGIS.Desktop.Extensions;
-using ArcGIS.Desktop.Framework;
+﻿using ArcGIS.Desktop.Framework;
 using ArcGIS.Desktop.Framework.Contracts;
-using ArcGIS.Desktop.Framework.Dialogs;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
-using ArcGIS.Desktop.KnowledgeGraph;
-using ArcGIS.Desktop.Layouts;
 using ArcGIS.Desktop.Mapping;
-using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace FullTextSearchDevSummitDemo
 {
-    internal class SearchDockPaneViewModel : DockPane
+  public class DatasetField
+  {
+    public bool IsSelected { get; set; }
+
+    private string _fieldName = "";
+    public string FieldName
     {
-        private const string _dockPaneID = "FullTextSearchDevSummitDemo_SearchDockPane";
+      get { return _fieldName; }
+      set { _fieldName = value; }
+    }
+  }
 
-        protected SearchDockPaneViewModel() { }
+  public class SearchDockPaneViewModel : DockPane
+  {
+    private const string _dockPaneID = "FullTextSearchDevSummitDemo_SearchDockPane";
+    private ObservableCollection<string> _datasets = new ObservableCollection<string>();
+    private ObservableCollection<DatasetField> _datasetFields = new ObservableCollection<DatasetField>();
+    private IEnumerable<MapMember> _mapMembers = null;
 
-        /// <summary>
-        /// Show the DockPane.
-        /// </summary>
-        internal static void Show()
+
+
+    protected SearchDockPaneViewModel()
+    {
+      _mapMembers = MapView.Active.Map.GetMapMembersAsFlattenedList();
+      ReadDatasets();
+
+    }
+    private void ReadDatasets()
+    {
+      IEnumerable<string> layers = _mapMembers.Select(l => l.Name);
+      _datasets = new ObservableCollection<string>(layers);
+    }
+
+    private ICommand _selectionCommand = null;
+    public ICommand SelectionCommand
+    {
+      get
+      {
+        if (_selectionCommand == null)
         {
-            DockPane pane = FrameworkApplication.DockPaneManager.Find(_dockPaneID);
-            if (pane == null)
-                return;
-
-            pane.Activate();
+          _selectionCommand = new RelayCommand(ExecuteSearch);
         }
+        return _selectionCommand;
+      }
+    }
 
-        /// <summary>
-        /// Text shown near the top of the DockPane.
-        /// </summary>
-        private string _heading = "My DockPane";
-        public string Heading
+
+    private ICommand _searchCommand = null;
+    public ICommand SearchCommand
+    {
+      get
+      {
+        if (_searchCommand == null)
         {
-            get => _heading;
-            set => SetProperty(ref _heading, value);
+          _searchCommand = new RelayCommand(ExecuteSearch);
         }
+        return _searchCommand;
+      }
+    }
+    private bool? _selectedRadio = null;
+    public bool? SelectedRadio
+    {
+      get { return _selectedRadio; }
+      set
+      {
+        if (_selectedRadio != value)
+        {
+          _selectedRadio = value;
+          SetProperty(ref _selectedRadio, value, () => SelectedRadio);
+        }
+      }
+    }
+
+    public ObservableCollection<string> Datasets
+    {
+      get
+      {
+        return _datasets;
+      }
+      set
+      {
+        SetProperty(ref _datasets, value, () => Datasets);
+      }
+    }
+
+    public ObservableCollection<DatasetField> DatasetFields
+    {
+      get
+      {
+        return _datasetFields;
+      }
+      set
+      {
+        SetProperty(ref _datasetFields, value, () => DatasetFields);
+      }
+    }
+
+
+    private string _selectedDataset;
+    public string SelectedDataset
+    {
+      get => _selectedDataset;
+      set
+      {
+        SetProperty(ref _selectedDataset, value, () => SelectedDataset);
+        HandleDatasetSelection(_selectedDataset);
+      }
+    }
+
+    private string _selectedField;
+    public string SelectedField
+    {
+      get => _selectedField;
+      set
+      {
+        SetProperty(ref _selectedField, value, () => SelectedField);
+      }
+    }
+
+    private string _searchTerm = null;
+    public string SearchTerm
+    {
+      get => _searchTerm;
+      set
+      {
+        SetProperty(ref _searchTerm, value, () => SearchTerm);
+      }
+    }
+
+    private string _searchExpression = null;
+    public string SearchExpression
+    {
+      get => _searchExpression;
+      set
+      {
+        SetProperty(ref _searchExpression, value, () => SearchExpression);
+      }
+    }
+
+    private string _searchResult = null;
+    public string SearchResult
+    {
+      get => _searchResult;
+      set
+      {
+        SetProperty(ref _searchResult, value, () => SearchResult);
+      }
+    }
+
+    private void HandleDatasetSelection(string selectedDataset)
+    {
+      QueuedTask.Run(() =>
+      {
+        IEnumerable<DatasetField> datasetFields = new List<DatasetField>();
+        IEnumerable<string> fieldNames = new List<string>();
+
+        foreach (var item in _mapMembers)
+        {
+          if (item.Name == selectedDataset)
+          {
+            if (item.GetType() == typeof(FeatureLayer))
+            {
+              FeatureLayer featureLayer = _mapMembers.First(m => m.GetType() == typeof(FeatureLayer)) as FeatureLayer;
+              fieldNames = featureLayer.GetFeatureClass().GetDefinition().GetFields().Select(f => f.Name);
+
+              foreach (var fieldName in fieldNames)
+              {
+                datasetFields = datasetFields.Append(new DatasetField() { FieldName = fieldName, IsSelected = false });
+              }
+            }
+            else if (item.GetType() == typeof(StandaloneTable))
+            {
+              StandaloneTable standaloneTable = _mapMembers.First(m => m.GetType() == typeof(StandaloneTable)) as StandaloneTable;
+              fieldNames = standaloneTable.GetTable().GetDefinition().GetFields().Select(f => f.Name);
+              foreach (var fieldName in fieldNames)
+              {
+                datasetFields = datasetFields.Append(new DatasetField() { FieldName = fieldName, IsSelected = false });
+              }
+            }
+          }
+        }
+        DatasetFields = new ObservableCollection<DatasetField>(datasetFields);
+      });
+    }
+
+    private void ExecuteSearch()
+    {
+      SearchResult = string.Empty;
+
+      var searchTerm = SearchTerm;
+      var searchExpression = SearchExpression;
+      var pp = DatasetFields;
+      var radio = SelectedRadio;
+      
+      SearchResult = DatasetFields.Select(x=>x.FieldName).ToString() + searchTerm + searchExpression + radio.ToString();
     }
 
     /// <summary>
-    /// Button implementation to show the DockPane.
+    /// Show the DockPane.
     /// </summary>
-    internal class SearchDockPane_ShowButton : Button
+    internal static void Show()
     {
-        protected override void OnClick()
-        {
-            SearchDockPaneViewModel.Show();
-        }
+      DockPane pane = FrameworkApplication.DockPaneManager.Find(_dockPaneID);
+      if (pane == null)
+        return;
+
+      pane.Activate();
     }
+  }
+
+  /// <summary>
+  /// Button implementation to show the DockPane.
+  /// </summary>
+  public class SearchDockPane_ShowButton : Button
+  {
+    protected override void OnClick()
+    {
+      SearchDockPaneViewModel.Show();
+    }
+  }
+
 }

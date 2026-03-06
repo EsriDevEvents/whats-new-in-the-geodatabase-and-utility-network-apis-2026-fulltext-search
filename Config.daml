@@ -1,0 +1,42 @@
+﻿<ArcGIS defaultAssembly="FullTextSearchDevSummitDemo.dll" defaultNamespace="FullTextSearchDevSummitDemo" xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
+  <AddInInfo id="{b1c7e2aa-6c3f-4b64-8b09-8821c6efb2d5}" version="1.0" desktopVersion="3.7.600" product="ArcGISPro">
+    <Name>FullTextSearchDevSummitDemo</Name>
+    <Description>FullTextSearchDevSummitDemo description</Description>
+    <Image>Images\AddinDesktop32.png</Image>
+    <Author>aas11333</Author>
+    <Company>Acme</Company>
+    <Date>3/5/2026 11:18:20 AM</Date>
+    <Subject>Framework</Subject>
+    <!-- Note subject can be one or more of these topics:
+                    Content, Framework, Editing, Geodatabase, Geometry, Geoprocessing, Layouts, Map Authoring, Map Exploration -->
+  </AddInInfo>
+  <modules>
+    <insertModule id="FullTextSearchDevSummitDemo_Module" className="Module1" autoLoad="false" caption="Module1">
+      <!-- uncomment to have the control hosted on a separate tab-->
+      <tabs>
+        <!--<tab id="FullTextSearchDevSummitDemo_Tab1" caption="New Tab">
+          <group refID="FullTextSearchDevSummitDemo_Group1"/>
+        </tab>-->
+      </tabs>
+      <groups>
+        <!-- comment this out if you have no controls on the Addin tab to avoid
+              an empty group-->
+        <group id="FullTextSearchDevSummitDemo_Group1" caption="Group 1" appearsOnAddInTab="true">
+          <!-- host controls within groups -->
+          <button refID="FullTextSearchDevSummitDemo_SearchDockPane_ShowButton" size="large" />
+        </group>
+      </groups>
+      <controls>
+        <!-- add your controls here -->
+        <button id="FullTextSearchDevSummitDemo_SearchDockPane_ShowButton" caption="Show SearchDockPane" className="SearchDockPane_ShowButton" loadOnClick="true" smallImage="GenericButtonPurple16" largeImage="GenericButtonPurple32">
+          <tooltip heading="Show Dockpane">Show Dockpane<disabledText /></tooltip>
+        </button>
+      </controls>
+      <dockPanes>
+        <dockPane id="FullTextSearchDevSummitDemo_SearchDockPane" caption="SearchDockPane" smallImage="BexDog16" className="SearchDockPaneViewModel" dock="group" dockWith="esri_core_projectDockPane">
+          <content className="SearchDockPaneView" />
+        </dockPane>
+      </dockPanes>
+    </insertModule>
+  </modules>
+</ArcGIS>

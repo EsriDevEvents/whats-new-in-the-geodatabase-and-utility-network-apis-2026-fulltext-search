@@ -1,4 +1,5 @@
-﻿using ArcGIS.Desktop.Framework;
+﻿using ArcGIS.Core.Data;
+using ArcGIS.Desktop.Framework;
 using ArcGIS.Desktop.Framework.Contracts;
 using ArcGIS.Desktop.Framework.Threading.Tasks;
 using ArcGIS.Desktop.Mapping;
@@ -68,8 +69,8 @@ namespace FullTextSearchDevSummitDemo
         return _searchCommand;
       }
     }
-    private bool? _selectedRadio = null;
-    public bool? SelectedRadio
+    private int? _selectedRadio = null;
+    public int? SelectedRadio
     {
       get { return _selectedRadio; }
       set
@@ -148,16 +149,6 @@ namespace FullTextSearchDevSummitDemo
       }
     }
 
-    private string _searchResult = null;
-    public string SearchResult
-    {
-      get => _searchResult;
-      set
-      {
-        SetProperty(ref _searchResult, value, () => SearchResult);
-      }
-    }
-
     private void HandleDatasetSelection(string selectedDataset)
     {
       QueuedTask.Run(() =>
@@ -196,14 +187,126 @@ namespace FullTextSearchDevSummitDemo
 
     private void ExecuteSearch()
     {
-      SearchResult = string.Empty;
+      string searchTerm = SearchTerm;
+      string searchExpression = SearchExpression;
+      int? radio = SelectedRadio;
 
-      var searchTerm = SearchTerm;
-      var searchExpression = SearchExpression;
-      var pp = DatasetFields;
-      var radio = SelectedRadio;
-      
-      SearchResult = DatasetFields.Select(x=>x.FieldName).ToString() + searchTerm + searchExpression + radio.ToString();
+      // Selected fields for search
+      List<string> searchFields = DatasetFields.Where(f => f.IsSelected.Equals(true)).Select(f => f.FieldName).ToList();
+      string searchFieldsAsString = string.Join(", ", searchFields);
+
+
+      // TODO:
+      FullTextSearchTermExpression fullTextSearchTermExpression1 = new FullTextSearchTermExpression()
+      {
+        SearchTerm = searchTerm,
+        SearchFields = searchFieldsAsString,
+        SearchType = FullTextSearchType.Simple
+      };
+
+      FullTextExpression fullTextSearchTermExpression2 = new FullTextSearchTermExpression()
+      {
+        SearchTerm = searchExpression,
+        SearchFields = searchFieldsAsString,
+        SearchType = FullTextSearchType.Simple
+      };
+
+      QueryFilter queryFilter = new QueryFilter();
+
+      switch (radio)
+      {
+        case 1:
+          {
+            // OR
+            FullTextOrExpression orExpression = new FullTextOrExpression(fullTextSearchTermExpression1, fullTextSearchTermExpression2);
+            queryFilter.FullTextExpression = orExpression;
+            break;
+          }
+
+        case 2:
+          {
+            // AND
+            FullTextAndExpression andExpression = new FullTextAndExpression(fullTextSearchTermExpression1, fullTextSearchTermExpression2);
+            queryFilter.FullTextExpression = andExpression;
+            break;
+          }
+        case 3:
+          {
+            // WHERE
+            FullTextSqlExpression fullTextSqlExpression = new FullTextSqlExpression()
+            {
+              WhereClause = "Description IS NOT NULL"
+            };
+            queryFilter.FullTextExpression = fullTextSqlExpression;
+
+            break;
+          }
+        case null:
+          // Default
+          queryFilter.FullTextExpression = fullTextSearchTermExpression1;
+          break;
+      }
+
+
+      QueuedTask.Run(() =>
+      {
+        foreach (var item in _mapMembers)
+        {
+          if (item.Name == SelectedDataset)
+          {
+            if (item.GetType() == typeof(FeatureLayer))
+            {
+              FeatureLayer featureLayer = _mapMembers.First(m => m.GetType() == typeof(FeatureLayer)) as FeatureLayer;
+              if (!CheckDataStoreSupportsFullext(featureLayer.GetFeatureClass()) && !CheckDatasetHasFullextIndex<TableDefinition>(featureLayer.GetFeatureClass().GetDefinition()))
+              {
+                return;
+              }
+              using (Selection selection = featureLayer.Select(queryFilter, SelectionCombinationMethod.New))
+              {
+                var selectcount = selection.GetCount();
+              }
+
+            }
+            else if (item.GetType() == typeof(StandaloneTable))
+            {
+              StandaloneTable standaloneTable = _mapMembers.First(m => m.GetType() == typeof(StandaloneTable)) as StandaloneTable;
+              if (!CheckDataStoreSupportsFullext(standaloneTable.GetTable()) && !CheckDatasetHasFullextIndex<TableDefinition>(standaloneTable.GetTable().GetDefinition()))
+              {
+                return;
+              }
+              using (Selection selection = standaloneTable.Select(queryFilter, SelectionCombinationMethod.New))
+              {
+                var selectcount = selection.GetCount();
+              }
+            }
+          }
+        }
+      });
+
+      #region Check for full-text index support 
+      // Check if the datastore supports full-text index
+      bool CheckDataStoreSupportsFullext(Table table)
+      {
+        using (var dataStore = table.GetDatastore())
+        {
+          return dataStore.GetDatastoreProperties().SupportsFullTextIndex;
+        }
+      }
+
+      // Check if the dataset has a full-text index defined
+      bool CheckDatasetHasFullextIndex<T>(T definition)
+      {
+        if (definition is TableDefinition tableDefinition)
+        {
+          return tableDefinition.GetIndexes().Any(i => i.IsFullText());
+        }
+        else if (definition is FeatureClassDefinition featureClassDefinition)
+        {
+          return featureClassDefinition.GetIndexes().Any(i => i.IsFullText());
+        }
+        return false;
+      }
+      #endregion Check for full-text index support
     }
 
     /// <summary>

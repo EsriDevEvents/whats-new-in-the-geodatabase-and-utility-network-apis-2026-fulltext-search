@@ -13,7 +13,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <extensions:DesignOnlyResourceDictionary Source="pack://application:,,,/ArcGIS.Desktop.Framework;component\Themes\Default.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <ui:BooleanToRadioConverter x:Key="BooleanToRadioConverter"></ui:BooleanToRadioConverter>
+            <ui:IntToRadioConverter x:Key="IntToRadioConverter"></ui:IntToRadioConverter>
         </ResourceDictionary>        
     </UserControl.Resources>
     <Grid Margin="10" >
@@ -63,17 +63,14 @@
         <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SearchTerm, Mode=TwoWay}" ></TextBox>
         
         <StackPanel Grid.Row="4" Grid.Column="0" HorizontalAlignment="Stretch" Orientation="Horizontal">
-            <!-- Bind the IsChecked property of the "True" button to your boolean property -->
-            <RadioButton Content="OR" IsChecked="{Binding SelectedRadio,Converter={StaticResource  BooleanToRadioConverter}, ConverterParameter=True}" Margin="4" GroupName="BooleanGroup"/>
-
-            <!-- The "False" button can be left unbound as the GroupName handles mutual exclusion -->
-            <RadioButton Content="AND" IsChecked="{Binding SelectedRadio, Converter={StaticResource  BooleanToRadioConverter}, ConverterParameter=False}" GroupName="BooleanGroup" />           
+            <RadioButton Content="OR" IsChecked="{Binding SelectedRadio,Converter={StaticResource  IntToRadioConverter}, ConverterParameter=1}" Margin="4" GroupName="BooleanGroup"/>
+            <RadioButton Content="AND" IsChecked="{Binding SelectedRadio, Converter={StaticResource  IntToRadioConverter}, ConverterParameter=2}" GroupName="BooleanGroup" />
+            <RadioButton Content="WHERE" IsChecked="{Binding SelectedRadio, Converter={StaticResource  IntToRadioConverter}, ConverterParameter=3}" GroupName="BooleanGroup" />
         </StackPanel>
 
         <Label Content="Search Terms" Grid.Row="5" Grid.Column="0"/>
         <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding SearchExpression, Mode=TwoWay}" ></TextBox>
 
         <Button Content="Search" Grid.Row="6" Grid.Column="1" Margin="10" Command="{Binding SearchCommand}"></Button>
-        <TextBlock Background="Cornsilk" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2"  MinHeight="100px" Text="{Binding SearchResult,Mode=TwoWay}"/>
     </Grid>
 </UserControl>
